@@ -1,0 +1,226 @@
+Task 1: Read and understand the Hierarchy data structure described in this file.
+Answer 1:
+The Hierarchy structure represents a collection of ordered trees (a forest) using two parallel arrays: one storing node IDs and the other storing the depth of each node. The nodes are arranged according to a depth‑first traversal, meaning each parent appears before its children in the sequence.
+
+The depth value defines the relationship between nodes. A depth of 0 indicates a root node, depth 1 represents its direct children, depth 2 their children, and so on. By comparing the depth of consecutive elements, it is possible to determine whether the next node is a child, a sibling, or belongs to a higher level in the tree.
+
+Because the hierarchy is stored as arrays rather than linked node objects, parent–child relationships are derived from the position and depth information. This design is compact and efficient, allowing tree structures to be represented and traversed using simple sequential access while still supporting multiple independent trees within the same structure.
+
+Task 2: Implement filter() function.
+Answer 2:
+fun Hierarchy.filter(nodeIdPredicate: (Int) -> Boolean): Hierarchy {
+    // Create a list to hold the node IDs that pass the filter
+    val filteredNodeIds = mutableListOf<Int>()
+    
+    // Create a list to hold the corresponding depths of the filtered nodes
+    val filteredDepths = mutableListOf<Int>()
+    
+    // Stack to track whether each ancestor at each depth has passed the predicate
+    val ancestorPassedStack = mutableListOf<Boolean>()
+    
+    // Iterate through all nodes in the hierarchy in DFS order
+    for (i in 0 until size) {
+        // Retrieve the unique ID of the current node
+        val node = nodeId(i)
+        
+        // Retrieve the depth of the current node in its tree
+        val depth = depth(i)
+        
+        // Remove any ancestor flags from the stack that are deeper than the current node's depth
+        // This ensures the stack always reflects only the current node's ancestor lineage
+        while (ancestorPassedStack.size > depth) {
+            ancestorPassedStack.removeAt(ancestorPassedStack.size - 1)
+        }
+        
+        // Determine if all ancestors of the current node have passed the predicate
+        val ancestorsPassed = ancestorPassedStack.all { it }
+        
+        // Include this node only if it passes the predicate and all ancestors passed
+        val include = nodeIdPredicate(node) && ancestorsPassed
+        
+        // Push the result for this node onto the stack for future children to reference
+        ancestorPassedStack.add(include)
+        
+        // If this node should be included in the filtered hierarchy
+        if (include) {
+            // Add the node ID to the list of filtered nodes
+            filteredNodeIds.add(node)
+            
+            // Add the adjusted depth for the filtered node
+            // Depth is based on how many nodes in the current lineage passed the filter
+            filteredDepths.add(ancestorPassedStack.count { it } - 1)
+        }
+    }
+    
+    // Return a new ArrayBasedHierarchy containing only the filtered nodes and their adjusted depths
+    return ArrayBasedHierarchy(
+        filteredNodeIds.toIntArray(),
+        filteredDepths.toIntArray()
+    )
+}
+
+Task 3: Implement more test cases.
+Answer 3:
+The following code implements additional test cases, and the outputs are displayed below.
+
+import kotlin.test.*
+
+class FilterTestsWithOutput {
+
+    @Test
+    fun `empty hierarchy returns empty result`() {
+        // Create an empty hierarchy with no nodes
+        val emptyHierarchy: Hierarchy = ArrayBasedHierarchy(IntArray(0), IntArray(0))
+        
+        // Apply the filter (any predicate) on the empty hierarchy
+        val filtered = emptyHierarchy.filter { it > 0 }
+        
+        // Print the filtered hierarchy in a readable format
+        println("Empty hierarchy filtered: ${filtered.formatString()}")
+        
+        // Assert that the result is indeed empty
+        assertEquals(0, filtered.size)
+    }
+
+    @Test
+    fun `all nodes pass predicate returns identical hierarchy`() {
+        // Create a simple hierarchy with 3 nodes in a straight DFS order
+        val hierarchy: Hierarchy = ArrayBasedHierarchy(
+            intArrayOf(1, 2, 3),
+            intArrayOf(0, 1, 2)
+        )
+        
+        // Filter with a predicate that always returns true
+        val filtered = hierarchy.filter { true }
+        
+        // Print the filtered hierarchy; should be identical to the original
+        println("All nodes pass predicate: ${filtered.formatString()}")
+        
+        // Verify the filtered hierarchy matches the original
+        assertEquals(hierarchy.formatString(), filtered.formatString())
+    }
+
+    @Test
+    fun `no nodes pass predicate returns empty hierarchy`() {
+        // Create a simple hierarchy with 3 nodes
+        val hierarchy: Hierarchy = ArrayBasedHierarchy(
+            intArrayOf(1, 2, 3),
+            intArrayOf(0, 1, 2)
+        )
+        
+        // Filter with a predicate that always returns false
+        val filtered = hierarchy.filter { false }
+        
+        // Print the result; should be empty
+        println("No nodes pass predicate: ${filtered.formatString()}")
+        
+        // Assert that no nodes remain after filtering
+        assertEquals(0, filtered.size)
+    }
+
+    @Test
+    fun `child nodes excluded if parent fails predicate`() {
+        // Create a hierarchy where node 2 has a child node 3
+        val hierarchy: Hierarchy = ArrayBasedHierarchy(
+            intArrayOf(1, 2, 3, 4),
+            intArrayOf(0, 1, 2, 1)
+        )
+        
+        // Filter out node 2; children of node 2 should also be excluded
+        val filtered = hierarchy.filter { it != 2 }
+        
+        // Expected result contains only nodes 1 and 4
+        val expected: Hierarchy = ArrayBasedHierarchy(
+            intArrayOf(1, 4),
+            intArrayOf(0, 1)
+        )
+        
+        // Print the filtered hierarchy for clarity
+        println("Child nodes excluded when parent fails: ${filtered.formatString()}")
+        
+        // Verify the filtered hierarchy matches expectations
+        assertEquals(expected.formatString(), filtered.formatString())
+    }
+
+    @Test
+    fun `filter works correctly on multiple roots`() {
+        // Create a forest with multiple root nodes
+        val hierarchy: Hierarchy = ArrayBasedHierarchy(
+            intArrayOf(1, 2, 3, 4, 5, 6),
+            intArrayOf(0, 1, 0, 1, 0, 1)
+        )
+        
+        // Keep only nodes with odd IDs
+        val filtered = hierarchy.filter { it % 2 != 0 }
+        
+        // Expected result includes odd-numbered root nodes only
+        val expected: Hierarchy = ArrayBasedHierarchy(
+            intArrayOf(1, 3, 5),
+            intArrayOf(0, 0, 0)
+        )
+        
+        // Print filtered hierarchy to show effect of filtering across multiple roots
+        println("Filter on multiple roots (odd nodes): ${filtered.formatString()}")
+        
+        // Assert the result matches expected hierarchy
+        assertEquals(expected.formatString(), filtered.formatString())
+    }
+
+    @Test
+    fun `deep hierarchy excludes descendants of failing nodes`() {
+        // Create a deep hierarchy where nodes 4, 5, 6 are nested under each other
+        val hierarchy: Hierarchy = ArrayBasedHierarchy(
+            intArrayOf(1, 2, 3, 4, 5, 6),
+            intArrayOf(0, 1, 2, 3, 4, 5)
+        )
+        
+        // Filter out node 4; its children (5 and 6) should also be removed
+        val filtered = hierarchy.filter { it != 4 }
+        
+        // Expected result contains only nodes 1, 2, 3
+        val expected: Hierarchy = ArrayBasedHierarchy(
+            intArrayOf(1, 2, 3),
+            intArrayOf(0, 1, 2)
+        )
+        
+        // Print filtered hierarchy to verify deep exclusion works
+        println("Deep hierarchy filtered (excluding node 4 and descendants): ${filtered.formatString()}")
+        
+        // Assert filtered hierarchy matches expected
+        assertEquals(expected.formatString(), filtered.formatString())
+    }
+
+    @Test
+    fun `original example test`() {
+        // Recreate the original example hierarchy from the problem statement
+        val unfiltered: Hierarchy = ArrayBasedHierarchy(
+            intArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
+            intArrayOf(0, 1, 2, 3, 1, 0, 1, 0, 1, 1, 2)
+        )
+        
+        // Filter out nodes divisible by 3
+        val filteredActual: Hierarchy = unfiltered.filter { nodeId -> nodeId % 3 != 0 }
+        
+        // Expected filtered hierarchy based on the same rules
+        val filteredExpected: Hierarchy = ArrayBasedHierarchy(
+            intArrayOf(1, 2, 5, 8, 10, 11),
+            intArrayOf(0, 1, 1, 0, 1, 2)
+        )
+        
+        // Print filtered hierarchy to visually confirm correctness
+        println("Original example filtered: ${filteredActual.formatString()}")
+        
+        // Assert the filtered hierarchy matches the expected outcome
+        assertEquals(filteredExpected.formatString(), filteredActual.formatString())
+    }
+}
+
+[printed outputs]
+
+Empty hierarchy filtered: []
+All nodes pass predicate: [1:0, 2:1, 3:2]
+No nodes pass predicate: []
+Child nodes excluded when parent fails: [1:0, 4:1]
+Filter on multiple roots (odd nodes): [1:0, 3:0, 5:0]
+Deep hierarchy filtered (excluding node 4 and descendants): [1:0, 2:1, 3:2]
+Original example filtered: [1:0, 2:1, 5:1, 8:0, 10:1, 11:2]
