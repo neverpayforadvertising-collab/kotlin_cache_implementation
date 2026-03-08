@@ -117,15 +117,11 @@ JUnit 5: For testing the functionality.
 
 How to Use
 
-Clone this repository:
+    Clone this repository
 
-git clone https://github.com/your-username/hierarchy-filter.git
+    Navigate to the project directory
 
-Navigate to the project directory:
-
-cd hierarchy-filter
-
-Add your custom Hierarchy structure and use the filter() function to apply your predicate.
+    Add your custom Hierarchy structure and use the filter() function to apply your predicate.
 
 Example Usage:
 val hierarchy: Hierarchy = ArrayBasedHierarchy(
